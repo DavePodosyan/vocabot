@@ -72,12 +72,12 @@ async def nextbatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Get 10 words that are 'new' or 'learning'
+    # Get 10 words that are 'new' or 'learning', prioritizing easier levels
     cursor.execute('''
-        SELECT id, word, word_type, definition, translation 
+        SELECT id, word, word_type, definition, translation, level
         FROM words 
         WHERE status IN ('new', 'learning') 
-        ORDER BY RANDOM() 
+        ORDER BY level ASC, RANDOM() 
         LIMIT 10
     ''')
     words_db = cursor.fetchall()
@@ -97,7 +97,7 @@ async def nextbatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Link words to batch and update status to 'learning'
     message_lines = [f"📚 *Batch #{batch_id}*"]
     
-    for w_id, word, word_type, definition, translation in words_db:
+    for w_id, word, word_type, definition, translation, level in words_db:
         # Lazy load definition
         if not definition:
             definition = fetch_definition(word)
@@ -114,7 +114,8 @@ async def nextbatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         cursor.execute('INSERT INTO batch_words (batch_id, word_id) VALUES (?, ?)', (batch_id, w_id))
         
         type_str = f" ({word_type})" if word_type else ""
-        message_lines.append(f"\n🇬🇧 *{word}*{type_str}\n📖 {definition}\n🇷🇺 {translation}")
+        level_str = f" [{level}]" if level else ""
+        message_lines.append(f"\n🇬🇧 *{word}*{type_str}{level_str}\n📖 {definition}\n🇷🇺 {translation}")
 
     conn.commit()
     conn.close()
@@ -137,7 +138,7 @@ async def view_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT w.word, w.word_type, w.definition, w.translation, w.status
+        SELECT w.word, w.word_type, w.definition, w.translation, w.status, w.level
         FROM words w
         JOIN batch_words bw ON w.id = bw.word_id
         WHERE bw.batch_id = ?
@@ -150,10 +151,11 @@ async def view_batch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         return
 
     message_lines = [f"📚 *Batch #{batch_id}*"]
-    for word, word_type, definition, translation, status in words:
+    for word, word_type, definition, translation, status, level in words:
         status_emoji = "✅" if status == 'known' else "🔄"
         type_str = f" ({word_type})" if word_type else ""
-        message_lines.append(f"\n{status_emoji} 🇬🇧 *{word}*{type_str}\n📖 {definition}\n🇷🇺 {translation}")
+        level_str = f" [{level}]" if level else ""
+        message_lines.append(f"\n{status_emoji} 🇬🇧 *{word}*{type_str}{level_str}\n📖 {definition}\n🇷🇺 {translation}")
 
     await update.message.reply_text("\n".join(message_lines), parse_mode='Markdown')
 
@@ -179,7 +181,7 @@ async def send_next_review_word(message_obj, context: ContextTypes.DEFAULT_TYPE)
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT w.id, w.word, w.word_type, w.translation 
+        SELECT w.id, w.word, w.word_type, w.translation, w.level
         FROM words w
         JOIN batch_words bw ON w.id = bw.word_id
         WHERE bw.batch_id = ?
@@ -194,8 +196,9 @@ async def send_next_review_word(message_obj, context: ContextTypes.DEFAULT_TYPE)
         context.user_data.pop('review_index', None)
         return
 
-    word_id, word, word_type, translation = words[index]
+    word_id, word, word_type, translation, level = words[index]
     type_str = f" ({word_type})" if word_type else ""
+    level_str = f" [{level}]" if level else ""
 
     keyboard = [
         [
@@ -206,7 +209,7 @@ async def send_next_review_word(message_obj, context: ContextTypes.DEFAULT_TYPE)
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message_obj.reply_text(
-        f"Review Word {index + 1}/{len(words)}:\n\n🇬🇧 *{word}*{type_str}\n🇷🇺 {translation}",
+        f"Review Word {index + 1}/{len(words)}:\n\n🇬🇧 *{word}*{type_str}{level_str}\n🇷🇺 {translation}",
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )

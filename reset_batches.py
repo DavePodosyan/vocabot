@@ -9,6 +9,9 @@ def reset_batches():
     cursor.execute('DELETE FROM batch_words')
     cursor.execute('DELETE FROM batches')
     
+    # Reset the auto-increment counter so the next batch is #1
+    cursor.execute("DELETE FROM sqlite_sequence WHERE name='batches'")
+    
     # Reset status of words back to 'new', but KEEP definitions/translations
     cursor.execute("UPDATE words SET status = 'new' WHERE status != 'new'")
     
