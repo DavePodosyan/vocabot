@@ -7,7 +7,7 @@ This Telegram bot sends vocabulary batches, fetches translations and definitions
 ### 1. Set Up Your Environment
 Open your terminal and navigate to the project directory:
 ```bash
-cd /Users/dav/Development/vocabot
+cd /home/deploy/vocabot
 ```
 
 If you haven't created a Python virtual environment yet, do so now:
@@ -86,7 +86,7 @@ Description=Vocabot Telegram Bot
 After=network.target
 
 [Service]
-# Change this to your actual server username (e.g., ubuntu, root, or dav)
+# Change this to your actual server username (e.g., ubuntu, root, ...)
 User=deploy
 WorkingDirectory=/home/deploy/vocabot
 Environment="PATH=/home/deploy/vocabot/venv/bin"
