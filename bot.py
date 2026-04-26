@@ -36,20 +36,59 @@ def restricted(func):
         return await func(update, context, *args, **kwargs)
     return wrapper
 
-def fetch_definition(word):
+def fetch_definition(word, expected_pos=""):
+    # If the word contains variations (e.g., neighbor/neighbour), just use the first one for the API
+    search_word = word.split('/')[0].strip()
     try:
-        response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}", timeout=5)
+        response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{search_word}", timeout=5)
         if response.status_code == 200:
             data = response.json()
-            return data[0]['meanings'][0]['definitions'][0]['definition']
+            expected_pos_lower = expected_pos.lower() if expected_pos else ""
+            
+            # First, try to find the definition that matches our word_type
+            if expected_pos_lower:
+                for meaning in data[0].get('meanings', []):
+                    pos = meaning.get('partOfSpeech', '').lower()
+                    definition_text = meaning.get('definitions', [{}])[0].get('definition', '')
+                    if pos == expected_pos_lower and definition_text:
+                        return f"({pos}) {definition_text}"
+            
+            # If no match found, or no expected_pos given, fallback to the very first definition
+            first_meaning = data[0].get('meanings', [{}])[0]
+            first_pos = first_meaning.get('partOfSpeech', '')
+            first_def = first_meaning.get('definitions', [{}])[0].get('definition', '')
+            if first_def:
+                pos_str = f"({first_pos}) " if first_pos else ""
+                return f"{pos_str}{first_def}"
+                
     except Exception as e:
         logger.error(f"Error fetching definition for {word}: {e}")
     return "Definition not available."
 
-def fetch_translation(word):
+def fetch_translation(word, word_type=""):
+    # Google Translate usually handles variations well, but let's be safe
+    search_word = word.split('/')[0].strip()
+    word_type_lower = word_type.lower() if word_type else ""
+    
+    # Context hints for Google Translate
+    if word_type_lower == "verb":
+        search_query = f"to {search_word}"
+    elif word_type_lower == "noun":
+        search_query = f"the {search_word}"
+    else:
+        search_query = search_word
+
     try:
         translator = GoogleTranslator(source='en', target='ru')
-        return translator.translate(word)
+        translation = translator.translate(search_query)
+        
+        # Google Translate sometimes leaves English articles or translates "the" as "этот"
+        if translation.lower().startswith("the "):
+            translation = translation[4:]
+        elif translation.lower().startswith("этот "):
+            translation = translation[5:]
+            
+        return translation.lower().strip()
     except Exception as e:
         logger.error(f"Error fetching translation for {word}: {e}")
         return "Translation not available."
@@ -100,11 +139,11 @@ async def nextbatch(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for w_id, word, word_type, definition, translation, level in words_db:
         # Lazy load definition
         if not definition:
-            definition = fetch_definition(word)
+            definition = fetch_definition(word, word_type)
         
         # Lazy load translation
         if not translation:
-            translation = fetch_translation(word)
+            translation = fetch_translation(word, word_type)
             
         cursor.execute('''
             UPDATE words SET status = 'learning', definition = ?, translation = ?
