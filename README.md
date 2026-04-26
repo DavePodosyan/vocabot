@@ -64,9 +64,9 @@ Since you are already hosting Laravel apps on your Hetzner Ubuntu server, runnin
 **Note: You can just use `MODE=polling` on the server!** You do not need Ngrok or Webhooks for this to work perfectly on your server.
 
 ### Step 1: Clone and Setup
-SSH into your server and put your bot files in `/opt/vocabot` (or your home directory).
+SSH into your server and put your bot files in `/home/deploy/vocabot` (or your home directory).
 ```bash
-cd /opt/vocabot
+cd /home/deploy/vocabot
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -87,10 +87,10 @@ After=network.target
 
 [Service]
 # Change this to your actual server username (e.g., ubuntu, root, or dav)
-User=yourusername
-WorkingDirectory=/opt/vocabot
-Environment="PATH=/opt/vocabot/venv/bin"
-ExecStart=/opt/vocabot/venv/bin/python bot.py
+User=deploy
+WorkingDirectory=/home/deploy/vocabot
+Environment="PATH=/home/deploy/vocabot/venv/bin"
+ExecStart=/home/deploy/vocabot/venv/bin/python bot.py
 Restart=always
 
 [Install]
