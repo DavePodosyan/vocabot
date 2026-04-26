@@ -57,7 +57,7 @@ Forward the words to Robert. Once he's ready, send `/review 1` to review the bat
 
 ---
 
-## 🚀 Ubuntu Hetzner Server Deployment (Systemd)
+## 🚀 Ubuntu Server Deployment (Systemd)
 
 Since you are already hosting Laravel apps on your Hetzner Ubuntu server, running this Python bot continuously in the background is extremely easy using `systemd`. 
 
