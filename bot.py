@@ -13,6 +13,7 @@ from database import get_connection
 # Load environment variables
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+YANDEX_DICTIONARY_KEY = os.getenv("YANDEX_DICTIONARY_KEY")
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -66,32 +67,35 @@ def fetch_definition(word, expected_pos=""):
     return "Definition not available."
 
 def fetch_translation(word, word_type=""):
-    # Google Translate usually handles variations well, but let's be safe
     search_word = word.split('/')[0].strip()
     word_type_lower = word_type.lower() if word_type else ""
     
-    # Context hints for Google Translate
-    if word_type_lower == "verb":
-        search_query = f"to {search_word}"
-    elif word_type_lower == "noun":
-        search_query = f"the {search_word}"
-    elif word_type_lower == "adjective" or word_type_lower == "adj":
-        search_query = f"very {search_word}"
-    else:
-        search_query = search_word
-
-    try:
-        translator = GoogleTranslator(source='en', target='ru')
-        translation = translator.translate(search_query)
+    # Map 'adj' to 'adjective' to match Yandex's format
+    if word_type_lower == "adj":
+        word_type_lower = "adjective"
         
-        # Google Translate sometimes leaves English articles or translates "the" as "этот"
-        if translation.lower().startswith("the "):
-            translation = translation[4:]
-        elif translation.lower().startswith("этот "):
-            translation = translation[5:]
-        elif word_type_lower in ["adjective", "adj"] and translation.lower().startswith("очень "):
-            translation = translation[6:]
-            
+    try:
+        # Try Yandex Dictionary API first
+        if YANDEX_DICTIONARY_KEY:
+            yandex_url = f"https://dictionary.yandex.net/api/v1/dicservice.json/lookup?key={YANDEX_DICTIONARY_KEY}&lang=en-ru&text={search_word}"
+            response = requests.get(yandex_url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if "def" in data and len(data["def"]) > 0:
+                    # Look for the matching part of speech
+                    if word_type_lower:
+                        for entry in data["def"]:
+                            pos = entry.get("pos", "").lower()
+                            if pos == word_type_lower and entry.get("tr"):
+                                return entry["tr"][0]["text"].lower()
+                    
+                    # Fallback to the very first translation Yandex offers if POS doesn't match
+                    if data["def"][0].get("tr"):
+                        return data["def"][0]["tr"][0]["text"].lower()
+
+        # Fallback to Google Translate if Yandex fails, key is missing, or no results found
+        translator = GoogleTranslator(source='en', target='ru')
+        translation = translator.translate(search_word)
         return translation.lower().strip()
     except Exception as e:
         logger.error(f"Error fetching translation for {word}: {e}")
