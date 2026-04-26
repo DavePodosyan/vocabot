@@ -75,6 +75,8 @@ def fetch_translation(word, word_type=""):
         search_query = f"to {search_word}"
     elif word_type_lower == "noun":
         search_query = f"the {search_word}"
+    elif word_type_lower == "adjective" or word_type_lower == "adj":
+        search_query = f"very {search_word}"
     else:
         search_query = search_word
 
@@ -87,6 +89,8 @@ def fetch_translation(word, word_type=""):
             translation = translation[4:]
         elif translation.lower().startswith("этот "):
             translation = translation[5:]
+        elif word_type_lower in ["adjective", "adj"] and translation.lower().startswith("очень "):
+            translation = translation[6:]
             
         return translation.lower().strip()
     except Exception as e:
