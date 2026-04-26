@@ -51,7 +51,7 @@ def fetch_definition(word, expected_pos=""):
                     pos = meaning.get('partOfSpeech', '').lower()
                     definition_text = meaning.get('definitions', [{}])[0].get('definition', '')
                     if pos == expected_pos_lower and definition_text:
-                        return f"({pos}) {definition_text}"
+                        return definition_text
             
             # If no match found, or no expected_pos given, fallback to the very first definition
             first_meaning = data[0].get('meanings', [{}])[0]
