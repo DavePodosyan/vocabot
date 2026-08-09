@@ -17,6 +17,9 @@ YANDEX_DICTIONARY_KEY = os.getenv("YANDEX_DICTIONARY_KEY")
 
 # Enable logging
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
+# httpx logs every request URL at INFO, and the bot token is part of that URL — which writes the
+# token into the journal on every API call. Quiet it to WARNING.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 def restricted(func):
